@@ -14,32 +14,6 @@ variables:
   terraformWorkingDir: 'terraform'
 
 stages:
-  - stage: Build_and_Push
-    displayName: 'Build Docker & Push to ACR'
-    jobs:
-      - job: Build
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          - task: Docker@2
-            displayName: 'Build image'
-            inputs:
-              command: build
-              Dockerfile: '**/Dockerfile'
-              tags: |
-                $(imageTag)
-              containerRegistry: $(azureSubscription)
-              repository: $(acrName).azurecr.io/$(imageName)
-
-          - task: Docker@2
-            displayName: 'Push image'
-            inputs:
-              command: push
-              tags: |
-                $(imageTag)
-              containerRegistry: $(azureSubscription)
-              repository: $(acrName).azurecr.io/$(imageName)
-
   - stage: Terraform
     displayName: 'Terraform Plan & Apply'
     dependsOn: Build_and_Push
@@ -80,6 +54,33 @@ stages:
               scriptLocation: inlineScript
               inlineScript: |
                 terraform apply -auto-approve tfplan
+
+  - stage: Build_and_Push
+    displayName: 'Build Docker & Push to ACR'
+    jobs:
+      - job: Build
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: Docker@2
+            displayName: 'Build image'
+            inputs:
+              command: build
+              Dockerfile: '**/Dockerfile'
+              tags: |
+                $(imageTag)
+              containerRegistry: $(azureSubscription)
+              repository: $(acrName).azurecr.io/$(imageName)
+
+          - task: Docker@2
+            displayName: 'Push image'
+            inputs:
+              command: push
+              tags: |
+                $(imageTag)
+              containerRegistry: $(azureSubscription)
+              repository: $(acrName).azurecr.io/$(imageName)
+
 
   - stage: Smoke_Test
     displayName: 'Smoke Tests'

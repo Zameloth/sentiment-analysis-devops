@@ -15,6 +15,7 @@ variables:
   image_name: '4iabdSentimentAPI'
   image_tag: '$(Build.BuildId)'
   terraformDir: 'terraform'
+  azureSubscription: 'myserviceconnection'
 
 stages:
 

@@ -63,6 +63,26 @@ stages:
                 terraform init
 
           - task: AzureCLI@2
+            displayName: 'Terraform Destroy (Clean Slate)'
+            inputs:
+              connectedServiceNameARM: 'myserviceconnection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Destroying existing resources (if any)..."
+                terraform destroy -auto-approve \
+                  -var="resource_group_name=$(resource_group_name)" \
+                  -var="location=$(location)" \
+                  -var="acr_name=$(acr_name)" \
+                  -var="app_service_plan_name=$(app_service_plan_name)" \
+                  -var="webapp_name=$(webapp_name)" \
+                  -var="image_name=$(image_name)" \
+                  -var="image_tag=$(image_tag)" || {
+                    echo "Destroy failed or nothing to destroy - continuing..."
+                    exit 0
+                  }
+
+          - task: AzureCLI@2
             displayName: 'Terraform Plan'
             inputs:
               connectedServiceNameARM: 'myserviceconnection'

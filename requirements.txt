@@ -3,5 +3,9 @@ uvicorn
 transformers
 pydantic
 tf-keras
-torch
 sentencepiece
+
+
+# Installe pytorch en mode cpu only (sans CUDA ...)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.1+cpu

@@ -63,24 +63,16 @@ stages:
                 terraform init
 
           - task: AzureCLI@2
-            displayName: 'Terraform Destroy (Clean Slate)'
+            displayName: 'Clean Resource Group'
             inputs:
               connectedServiceNameARM: 'myserviceconnection'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                echo "Destroying existing resources (if any)..."
-                terraform destroy -auto-approve \
-                  -var="resource_group_name=$(resource_group_name)" \
-                  -var="location=$(location)" \
-                  -var="acr_name=$(acr_name)" \
-                  -var="app_service_plan_name=$(app_service_plan_name)" \
-                  -var="webapp_name=$(webapp_name)" \
-                  -var="image_name=$(image_name)" \
-                  -var="image_tag=$(image_tag)" || {
-                    echo "Destroy failed or nothing to destroy - continuing..."
-                    exit 0
-                  }
+                echo "Cleaning resource group..."
+                az group delete --name $(resource_group_name) --yes --no-wait || echo "Resource group might not exist"
+                echo "Waiting a bit for cleanup..."
+                sleep 30
 
           - task: AzureCLI@2
             displayName: 'Terraform Plan'

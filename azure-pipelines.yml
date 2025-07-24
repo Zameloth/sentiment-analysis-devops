@@ -29,7 +29,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Test Connection'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              connectedServiceNameARM: 'myserviceconnection'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -40,7 +40,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              connectedServiceNameARM: 'myserviceconnection'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -50,7 +50,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Plan'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              connectedServiceNameARM: 'myserviceconnection'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -68,7 +68,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Apply'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              connectedServiceNameARM: 'myserviceconnection'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -86,9 +86,9 @@ stages:
           - task: AzureCLI@2
             displayName: 'Login to ACR'
             inputs:
-              azureSubscription: $(azureSubscription)
-              scriptType: bash
-              scriptLocation: inlineScript
+              connectedServiceNameARM: 'myserviceconnection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 az acr login --name $(acr_name)
 
@@ -112,9 +112,9 @@ stages:
           - task: AzureCLI@2
             displayName: 'Healthcheck & Predict'
             inputs:
-              azureSubscription: $(azureSubscription)
-              scriptType: bash
-              scriptLocation: inlineScript
+              connectedServiceNameARM: 'myserviceconnection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 URL=$(az webapp show \
                   --resource-group $(resource_group_name) \

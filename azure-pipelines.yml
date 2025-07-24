@@ -27,11 +27,22 @@ stages:
           vmImage: 'ubuntu-latest'
         steps:
           - task: AzureCLI@2
+            displayName: 'Test Connection'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Testing Azure connection..."
+                az account show
+                echo "Connection successful!"
+
+          - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
-              connectedServiceNameARM: $(azureSubscription)
-              scriptType: bash
-              scriptLocation: inlineScript
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 cd $(terraformDir)
                 terraform init
@@ -39,9 +50,9 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Plan'
             inputs:
-              connectedServiceNameARM: $(azureSubscription)
-              scriptType: bash
-              scriptLocation: inlineScript
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 cd $(terraformDir)
                 terraform plan \
@@ -57,9 +68,9 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Apply'
             inputs:
-              connectedServiceNameARM: $(azureSubscription)
-              scriptType: bash
-              scriptLocation: inlineScript
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 cd $(terraformDir)
                 terraform apply -auto-approve tfplan
@@ -75,7 +86,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Login to ACR'
             inputs:
-              connectedServiceNameARM: $(azureSubscription)
+              azureSubscription: $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -101,7 +112,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Healthcheck & Predict'
             inputs:
-              connectedServiceNameARM: $(azureSubscription)
+              azureSubscription: $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |

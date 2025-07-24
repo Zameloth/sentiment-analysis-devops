@@ -14,7 +14,7 @@ variables:
   webapp_name: '4iabdSentimentAPIWebApp'
   image_name: '4iabdSentimentAPI'
   image_tag: '$(Build.BuildId)'
-  terraformDir: '.'
+  terraformDir: '.'  # Dossier racine au lieu de 'terraform'
 
 
 stages:
@@ -26,10 +26,17 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
-          - task: TerraformInstaller@0
+          - task: Bash@3
             displayName: 'Install Terraform'
             inputs:
-              terraformVersion: 'latest'
+              targetType: 'inline'
+              script: |
+                # Télécharger et installer Terraform
+                TERRAFORM_VERSION="1.9.8"
+                wget -O terraform.zip https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+                unzip terraform.zip
+                sudo mv terraform /usr/local/bin/
+                terraform --version
 
           - task: AzureCLI@2
             displayName: 'Test Connection'
@@ -49,20 +56,10 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                # Créer le dossier terraform s'il n'existe pas
-                if [ ! -d "$(terraformDir)" ]; then
-                  mkdir -p $(terraformDir)
-                  echo "Created terraform directory"
-                fi
-                cd $(terraformDir)
-                
-                # Copier les fichiers Terraform depuis la racine si nécessaire
-                if [ ! -f "main.tf" ] && [ -f "../main.tf" ]; then
-                  cp ../main.tf .
-                  cp ../variables.tf .
-                  echo "Copied Terraform files from root"
-                fi
-                
+                echo "Current directory: $(pwd)"
+                echo "Files in current directory:"
+                ls -la
+                echo "Initializing Terraform..."
                 terraform init
 
           - task: AzureCLI@2
@@ -72,7 +69,6 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                cd $(terraformDir)
                 terraform plan \
                   -var="resource_group_name=$(resource_group_name)" \
                   -var="location=$(location)" \
@@ -90,7 +86,6 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                cd $(terraformDir)
                 terraform apply -auto-approve tfplan
 
   - stage: Build_and_Push
@@ -119,9 +114,35 @@ stages:
               tags: |
                 $(image_tag)
 
+  - stage: Deploy_App
+    displayName: 'Deploy to App Service'
+    dependsOn: Build_and_Push
+    jobs:
+      - job: Deploy
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Update App Service with new image'
+            inputs:
+              connectedServiceNameARM: 'myserviceconnection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Redémarrer l'App Service avec la nouvelle image
+                az webapp config container set \
+                  --resource-group $(resource_group_name) \
+                  --name $(webapp_name) \
+                  --docker-custom-image-name $(acr_name).azurecr.io/$(image_name):$(image_tag)
+                
+                # Redémarrer l'App Service
+                az webapp restart \
+                  --resource-group $(resource_group_name) \
+                  --name $(webapp_name)
+
   - stage: Smoke_Test
     displayName: 'Smoke Tests'
-    dependsOn: Build_and_Push
+    dependsOn: Deploy_App
     jobs:
       - job: Test
         pool:

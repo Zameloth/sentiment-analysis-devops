@@ -10,7 +10,7 @@ variables:
   acrName: '$(acr_name)'
   imageName: '$(image_name)'
   imageTag: '$(Build.BuildId)'
-  location: '$(location)'
+  Location: 'westeurope'
   terraformWorkingDir: 'terraform'
 
 stages:

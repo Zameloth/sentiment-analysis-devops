@@ -14,7 +14,7 @@ variables:
   webapp_name: '4iabdSentimentAPIWebApp'
   image_name: '4iabdSentimentAPI'
   image_tag: '$(Build.BuildId)'
-  terraformDir: 'terraform'
+  terraformDir: '.'
 
 
 stages:
@@ -26,6 +26,11 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: 'latest'
+
           - task: AzureCLI@2
             displayName: 'Test Connection'
             inputs:
@@ -44,7 +49,20 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
+                # Créer le dossier terraform s'il n'existe pas
+                if [ ! -d "$(terraformDir)" ]; then
+                  mkdir -p $(terraformDir)
+                  echo "Created terraform directory"
+                fi
                 cd $(terraformDir)
+                
+                # Copier les fichiers Terraform depuis la racine si nécessaire
+                if [ ! -f "main.tf" ] && [ -f "../main.tf" ]; then
+                  cp ../main.tf .
+                  cp ../variables.tf .
+                  echo "Copied Terraform files from root"
+                fi
+                
                 terraform init
 
           - task: AzureCLI@2

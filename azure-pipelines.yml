@@ -72,7 +72,7 @@ stages:
                 echo "Cleaning resource group..."
                 az group delete --name $(resource_group_name) --yes --no-wait || echo "Resource group might not exist"
                 echo "Waiting a bit for cleanup..."
-                sleep 30
+                sleep 100
 
           - task: AzureCLI@2
             displayName: 'Terraform Plan'

@@ -29,7 +29,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
-              azureSubscription: $(azureSubscription)
+              connectedServiceNameARM : $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -39,7 +39,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Plan'
             inputs:
-              azureSubscription: $(azureSubscription)
+              connectedServiceNameARM : $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -57,7 +57,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Apply'
             inputs:
-              azureSubscription: $(azureSubscription)
+              connectedServiceNameARM : $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -75,7 +75,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Login to ACR'
             inputs:
-              azureSubscription: $(azureSubscription)
+              connectedServiceNameARM: $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -101,7 +101,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Healthcheck & Predict'
             inputs:
-              azureSubscription: $(azureSubscription)
+              connectedServiceNameARM: $(azureSubscription)
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |

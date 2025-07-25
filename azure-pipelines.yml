@@ -10,6 +10,7 @@ variables:
   # Variables pour le registre de conteneurs
   acrName: '4iabdSentimentACR754'
   containerRegistry: '4iabdsentimentacr754.azurecr.io'
+  acrServiceConnection: 'acr'
 
   # Variables pour les images Docker
   apiImageName: 'sentiment-api'
@@ -174,7 +175,7 @@ stages:
             inputs:
               command: 'buildAndPush'
               repository: '$(apiImageName)'
-              containerRegistry: '$(containerRegistry)'
+              containerRegistry: '$(acrServiceConnection)'  # Utilisez le nom de la connexion de service
               Dockerfile: 'api/Dockerfile'
               tags: |
                 $(tag)
@@ -186,7 +187,7 @@ stages:
             inputs:
               command: 'buildAndPush'
               repository: '$(modelImageName)'
-              containerRegistry: '$(containerRegistry)'
+              containerRegistry: '$(acrServiceConnection)'  # Utilisez le nom de la connexion de service
               Dockerfile: 'model/Dockerfile'
               tags: |
                 $(tag)

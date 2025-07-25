@@ -20,7 +20,7 @@ variables:
 stages:
 
   - stage: Terraform
-    displayName: 'Terraform Init → Plan → Apply'
+    displayName: 'Terraform Init → Import → Plan → Apply'
     jobs:
       - job: TF
         pool:
@@ -41,7 +41,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Test Connection'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -52,32 +52,35 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
                 echo "Current directory: $(pwd)"
-                echo "Files in current directory:"
                 ls -la
-                echo "Initializing Terraform..."
                 terraform init
-#
-#          - task: AzureCLI@2
-#            displayName: 'Clean Resource Group'
-#            inputs:
-#              connectedServiceNameARM: 'myserviceconnection'
-#              scriptType: 'bash'
-#              scriptLocation: 'inlineScript'
-#              inlineScript: |
-#                echo "Cleaning resource group..."
-#                az group delete --name $(resource_group_name) --yes --no-wait || echo "Resource group might not exist"
-#                echo "Waiting a bit for cleanup..."
-#                sleep 100
+
+          - task: AzureCLI@2
+            displayName: 'Import existing Resource Group into Terraform state'
+            inputs:
+              connectedServiceNameARM: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Récupère l'ID de souscription courante
+                SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                # Vérifie si le RG est déjà dans l'état
+                if ! terraform state list | grep -q azurerm_resource_group.my_rg; then
+                  echo "Importing resource group $(resource_group_name) into Terraform state..."
+                  terraform import azurerm_resource_group.my_rg "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/$(resource_group_name)"
+                else
+                  echo "Resource group already managed by Terraform."
+                fi
 
           - task: AzureCLI@2
             displayName: 'Terraform Plan'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -94,7 +97,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Apply'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -111,7 +114,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Login to ACR'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -137,17 +140,14 @@ stages:
           - task: AzureCLI@2
             displayName: 'Update App Service with new image'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                # Redémarrer l'App Service avec la nouvelle image
                 az webapp config container set \
                   --resource-group $(resource_group_name) \
                   --name $(webapp_name) \
                   --docker-custom-image-name $(acr_name).azurecr.io/$(image_name):$(image_tag)
-                
-                # Redémarrer l'App Service
                 az webapp restart \
                   --resource-group $(resource_group_name) \
                   --name $(webapp_name)
@@ -163,7 +163,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Healthcheck & Predict'
             inputs:
-              connectedServiceNameARM: 'myserviceconnection'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |

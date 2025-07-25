@@ -15,6 +15,10 @@ variables:
   modelImageName: 'sentiment-model'
   tag: '$(Build.BuildId)'
 
+  resource_group_name: 'sentimentApi'  # Correspond à votre variable Terraform
+  storage_account_name: 'sentimentapistate'
+
+
 stages:
   - stage: Deploy
     jobs:
@@ -33,7 +37,7 @@ stages:
             inputs:
               provider: 'azurerm'
               command: 'init'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
               backendServiceArm: '$(azureSubscription)'
               backendAzureRmResourceGroupName: '$(resourceGroupName)'
               backendAzureRmStorageAccountName: 'sentimentapistate'
@@ -45,7 +49,7 @@ stages:
             inputs:
               provider: 'azurerm'
               command: 'plan'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
               environmentServiceNameAzureRM: '$(azureSubscription)'
               commandOptions: '-var="image_tag=$(tag)"'
 
@@ -54,7 +58,7 @@ stages:
             inputs:
               provider: 'azurerm'
               command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
               environmentServiceNameAzureRM: '$(azureSubscription)'
               commandOptions: '-auto-approve -var="image_tag=$(tag)"'
   - stage: Build

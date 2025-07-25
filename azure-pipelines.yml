@@ -9,7 +9,7 @@ variables:
 
   # Variables pour le registre de conteneurs
   acrName: '4iabdSentimentACR754'
-  containerRegistry: '$(acrName).azurecr.io'
+  containerRegistry: '$4iabdsentimentacr754.azurecr.io'
 
   # Variables pour les images Docker
   apiImageName: 'sentiment-api'

@@ -1,0 +1,9 @@
+resource_group_name     = "sentimentApi"
+location               = "West Europe"
+acr_name               = "4iabdSentimentACR"
+webapp_name            = "4iabdSentimentAPI"
+api_image_name         = "sentiment-api"
+model_image_name       = "sentiment-model"
+image_tag              = "latest"
+enable_https_only      = true
+allowed_origins        = ["https://votre-frontend.com"]

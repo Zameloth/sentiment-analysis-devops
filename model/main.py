@@ -12,15 +12,14 @@ from transformers import (
 app = FastAPI()
 
 tokenizer = AutoTokenizer.from_pretrained("alosof/camembert-sentiment-allocine", use_fast=False)
-model     = TFAutoModelForSequenceClassification.from_pretrained("alosof/camembert-sentiment-allocine")
+model = TFAutoModelForSequenceClassification.from_pretrained("alosof/camembert-sentiment-allocine")
 
 classifier = pipeline(
     "text-classification",
-    model=      model,
-    tokenizer=  tokenizer,
-    framework=  "tf"
+    model=model,
+    tokenizer=tokenizer,
+    framework="tf"
 )
-
 
 class InputText(BaseModel):
     text: str
@@ -33,6 +32,6 @@ def health():
 def predict(input_data: InputText):
     result = classifier(input_data.text)[0]
     return {
-        "label":  result["label"],
-        "score":  round(result["score"], 3)
+        "label": result["label"],
+        "score": round(result["score"], 3)
     }

@@ -1,132 +1,111 @@
 trigger:
-  branches:
-    include:
-      - main
+  - main
 
 variables:
-  # Service Connection ARM
-  azureSubscription: 'myserviceconnection'
-
-  # Backend Azure Storage (doit exister ou être créé en amont)
-  storage_account_name: 'sentimentapistate'
-  container_name: 'tfstate'
-  backend_key: 'sentimentapi/terraform.tfstate'
-
-  # Variables Terraform
-  resource_group_name: 'sentimentAnalysis'
+  # Variables pour Azure
+  azureSubscription: 'Azure-Connection'
+  resourceGroupName: 'sentimentApi'
   location: 'West Europe'
-  acr_name: '4iabdSentimentACR'
-  app_service_plan_name: 'myAppPlan'
-  webapp_name: '4iabdSentimentAPIWebApp'
-  image_name: '4iabdSentimentAPI'
-  image_tag: '$(Build.BuildId)'
-  terraformDir: '.'  # Dossier racine des .tf
+
+  # Variables pour le registre de conteneurs
+  containerRegistry: '4iabdSentimentACR.azurecr.io'
+
+  # Variables pour les images Docker
+  apiImageName: 'sentiment-api'
+  modelImageName: 'sentiment-model'
+  tag: '$(Build.BuildId)'
 
 stages:
-  - stage: Terraform
-    jobs:
-      - job: TF
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          # 1) Log in to Azure with Service Connection (sets az context, non utilisé par Terraform)
-          - task: AzureCLI@2
-            displayName: 'Azure CLI Login'
-            inputs:
-              azureSubscription: $(azureSubscription)
-              scriptType: bash
-              scriptLocation: inlineScript
-              inlineScript: |
-                echo "Logged in via Service Connection"
+- stage: Build
+  jobs:
+  - job: BuildAndPublish
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    # Installation des dépendances Terraform
+    - task: TerraformInstaller@0
+      inputs:
+        terraformVersion: 'latest'
 
-          # 2) Exporter les credentials SP pour Terraform
-          - script: |
-              TERRAFORM_VERSION="1.9.8"
-              wget -O terraform.zip https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
-              unzip terraform.zip
-              sudo mv terraform /usr/local/bin/
-              echo "## Exposer SP credentials pour Terraform"
-              export ARM_SUBSCRIPTION_ID=$(subscription_id)
-              export ARM_TENANT_ID=$(tenant_id)
-              export ARM_CLIENT_ID=$(client_id)
-              export ARM_CLIENT_SECRET=$(client_secret)
-              cd $(terraformDir)
-              terraform init
-              terraform plan -out=tfplan
-              terraform apply -auto-approve tfplan
-            displayName: 'Terraform Init/Plan/Apply'
+    # Construction et push de l'image API
+    - task: Docker@2
+      displayName: 'Build and Push API Image'
+      inputs:
+        containerRegistry: '$(containerRegistry)'
+        repository: '$(apiImageName)'
+        command: 'buildAndPush'
+        Dockerfile: 'api/Dockerfile'
+        tags: |
+          $(tag)
+          latest
 
+    # Construction et push de l'image Model
+    - task: Docker@2
+      displayName: 'Build and Push Model Image'
+      inputs:
+        containerRegistry: '$(containerRegistry)'
+        repository: '$(modelImageName)'
+        command: 'buildAndPush'
+        Dockerfile: 'model/Dockerfile'
+        tags: |
+          $(tag)
+          latest
 
+- stage: Deploy
+  dependsOn: Build
+  jobs:
+  - job: DeployInfrastructure
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    # Téléchargement des artefacts de build si nécessaire
+    - download: current
 
-  - stage: Build_and_Push
-    displayName: 'Build Docker & Push to ACR'
-    dependsOn: Terraform
-    jobs:
-      - job: Docker
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          - task: AzureCLI@2
-            displayName: 'Login to ACR'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                az acr login --name $(acr_name)
+    # Initialisation de Terraform
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+        backendServiceArm: '$(azureSubscription)'
+        backendAzureRmResourceGroupName: '$(resourceGroupName)'
+        backendAzureRmStorageAccountName: 'sentimentapistate'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'sentimentapi/terraform.tfstate'
 
-          - task: Docker@2
-            displayName: 'Build & Push image'
-            inputs:
-              command: buildAndPush
-              repository: $(acr_name).azurecr.io/$(image_name)
-              Dockerfile: '**/Dockerfile'
-              tags: |
-                $(image_tag)
+    # Plan Terraform
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+        environmentServiceNameAzureRM: '$(azureSubscription)'
+        commandOptions: '-var="image_tag=$(tag)"'
 
-  - stage: Deploy_App
-    displayName: 'Deploy to App Service'
-    dependsOn: Build_and_Push
-    jobs:
-      - job: Deploy
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          - task: AzureCLI@2
-            displayName: 'Update App Service with new image'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                az webapp config container set \
-                  --resource-group $(resource_group_name) \
-                  --name $(webapp_name) \
-                  --docker-custom-image-name $(acr_name).azurecr.io/$(image_name):$(image_tag)
-                az webapp restart \
-                  --resource-group $(resource_group_name) \
-                  --name $(webapp_name)
+    # Application Terraform
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+        environmentServiceNameAzureRM: '$(azureSubscription)'
+        commandOptions: '-auto-approve -var="image_tag=$(tag)"'
 
-  - stage: Smoke_Test
-    displayName: 'Smoke Tests'
-    dependsOn: Deploy_App
-    jobs:
-      - job: Test
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          - task: AzureCLI@2
-            displayName: 'Healthcheck & Predict'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                URL=$(az webapp show \
-                  --resource-group $(resource_group_name) \
-                  --name $(webapp_name) \
-                  --query defaultHostName -o tsv)
-                echo "Health:" && curl -fsS https://$URL/health
-                echo "Predict:" && curl -fsS -X POST https://$URL/predict \
-                  -H "Content-Type: application/json" \
-                  -d '{"text":"Test de déploiement"}'
+- stage: HealthCheck
+  dependsOn: Deploy
+  jobs:
+  - job: TestEndpoints
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: PowerShell@2
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Test API Health
+          $apiHealth = Invoke-RestMethod -Uri "https://$(apiWebAppName).azurewebsites.net/health"
+          if ($apiHealth.status -ne "ok") { throw "API health check failed" }
+          
+          # Test Model Service Health
+          $modelHealth = Invoke-RestMethod -Uri "https://$(modelWebAppName).azurewebsites.net/health"
+          if ($modelHealth.status -ne "ok") { throw "Model service health check failed" }

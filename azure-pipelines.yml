@@ -183,7 +183,7 @@ stages:
             inputs:
               command: 'buildAndPush'
               repository: '$(apiImageName)'
-              containerRegistry: '$(acrName).azurecr.io'
+              containerRegistry: '$(containerRegistry)'
               Dockerfile: 'api/Dockerfile'
               tags: |
                 $(tag)
@@ -195,7 +195,7 @@ stages:
             inputs:
               command: 'buildAndPush'
               repository: '$(modelImageName)'
-              containerRegistry: '$(acrName).azurecr.io'
+              containerRegistry: '$(containerRegistry)'
               Dockerfile: 'model/Dockerfile'
               tags: |
                 $(tag)

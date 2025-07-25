@@ -16,96 +16,96 @@ variables:
   tag: '$(Build.BuildId)'
 
 stages:
-- stage: Build
-  jobs:
-  - job: BuildAndPublish
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    # Installation des dépendances Terraform
-    - task: TerraformInstaller@0
-      inputs:
-        terraformVersion: 'latest'
+  - stage: Deploy
+    dependsOn: Build
+    jobs:
+      - job: DeployInfrastructure
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          # Téléchargement des artefacts de build si nécessaire
+          - download: current
 
-    # Construction et push de l'image API
-    - task: Docker@2
-      displayName: 'Build and Push API Image'
-      inputs:
-        containerRegistry: '$(containerRegistry)'
-        repository: '$(apiImageName)'
-        command: 'buildAndPush'
-        Dockerfile: 'api/Dockerfile'
-        tags: |
-          $(tag)
-          latest
+          # Initialisation de Terraform
+          - task: TerraformTaskV4@4
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              backendServiceArm: '$(azureSubscription)'
+              backendAzureRmResourceGroupName: '$(resourceGroupName)'
+              backendAzureRmStorageAccountName: 'sentimentapistate'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'sentimentapi/terraform.tfstate'
 
-    # Construction et push de l'image Model
-    - task: Docker@2
-      displayName: 'Build and Push Model Image'
-      inputs:
-        containerRegistry: '$(containerRegistry)'
-        repository: '$(modelImageName)'
-        command: 'buildAndPush'
-        Dockerfile: 'model/Dockerfile'
-        tags: |
-          $(tag)
-          latest
+          # Plan Terraform
+          - task: TerraformTaskV4@4
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              environmentServiceNameAzureRM: '$(azureSubscription)'
+              commandOptions: '-var="image_tag=$(tag)"'
 
-- stage: Deploy
-  dependsOn: Build
-  jobs:
-  - job: DeployInfrastructure
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    # Téléchargement des artefacts de build si nécessaire
-    - download: current
+          # Application Terraform
+          - task: TerraformTaskV4@4
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
+              environmentServiceNameAzureRM: '$(azureSubscription)'
+              commandOptions: '-auto-approve -var="image_tag=$(tag)"'
+  - stage: Build
+    jobs:
+      - job: BuildAndPublish
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          # Installation des dépendances Terraform
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: 'latest'
 
-    # Initialisation de Terraform
-    - task: TerraformTaskV4@4
-      inputs:
-        provider: 'azurerm'
-        command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-        backendServiceArm: '$(azureSubscription)'
-        backendAzureRmResourceGroupName: '$(resourceGroupName)'
-        backendAzureRmStorageAccountName: 'sentimentapistate'
-        backendAzureRmContainerName: 'tfstate'
-        backendAzureRmKey: 'sentimentapi/terraform.tfstate'
+          # Construction et push de l'image API
+          - task: Docker@2
+            displayName: 'Build and Push API Image'
+            inputs:
+              containerRegistry: '$(containerRegistry)'
+              repository: '$(apiImageName)'
+              command: 'buildAndPush'
+              Dockerfile: 'api/Dockerfile'
+              tags: |
+                $(tag)
+                latest
 
-    # Plan Terraform
-    - task: TerraformTaskV4@4
-      inputs:
-        provider: 'azurerm'
-        command: 'plan'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-        environmentServiceNameAzureRM: '$(azureSubscription)'
-        commandOptions: '-var="image_tag=$(tag)"'
+          # Construction et push de l'image Model
+          - task: Docker@2
+            displayName: 'Build and Push Model Image'
+            inputs:
+              containerRegistry: '$(containerRegistry)'
+              repository: '$(modelImageName)'
+              command: 'buildAndPush'
+              Dockerfile: 'model/Dockerfile'
+              tags: |
+                $(tag)
+                latest
 
-    # Application Terraform
-    - task: TerraformTaskV4@4
-      inputs:
-        provider: 'azurerm'
-        command: 'apply'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/infrastructure'
-        environmentServiceNameAzureRM: '$(azureSubscription)'
-        commandOptions: '-auto-approve -var="image_tag=$(tag)"'
 
-- stage: HealthCheck
-  dependsOn: Deploy
-  jobs:
-  - job: TestEndpoints
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: PowerShell@2
-      inputs:
-        targetType: 'inline'
-        script: |
-          # Test API Health
-          $apiHealth = Invoke-RestMethod -Uri "https://$(apiWebAppName).azurewebsites.net/health"
-          if ($apiHealth.status -ne "ok") { throw "API health check failed" }
-          
-          # Test Model Service Health
-          $modelHealth = Invoke-RestMethod -Uri "https://$(modelWebAppName).azurewebsites.net/health"
-          if ($modelHealth.status -ne "ok") { throw "Model service health check failed" }
+  - stage: HealthCheck
+    dependsOn: Deploy
+    jobs:
+      - job: TestEndpoints
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Test API Health
+                $apiHealth = Invoke-RestMethod -Uri "https://$(apiWebAppName).azurewebsites.net/health"
+                if ($apiHealth.status -ne "ok") { throw "API health check failed" }
+                
+                # Test Model Service Health
+                $modelHealth = Invoke-RestMethod -Uri "https://$(modelWebAppName).azurewebsites.net/health"
+                if ($modelHealth.status -ne "ok") { throw "Model service health check failed" }

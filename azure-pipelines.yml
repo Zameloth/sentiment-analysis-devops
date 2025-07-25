@@ -23,54 +23,38 @@ variables:
   terraformDir: '.'  # Dossier racine des .tf
 
 stages:
-
   - stage: Terraform
-    displayName: 'Terraform Init → Import → Plan → Apply'
     jobs:
       - job: TF
         pool:
           vmImage: 'ubuntu-latest'
         steps:
-          - task: Bash@3
-            displayName: 'Install Terraform'
+          # 1) Log in to Azure with Service Connection (sets az context, non utilisé par Terraform)
+          - task: AzureCLI@2
+            displayName: 'Azure CLI Login'
             inputs:
-              targetType: 'inline'
-              script: |
-                # Télécharger et installer Terraform
-                TERRAFORM_VERSION="1.9.8"
-                wget -O terraform.zip https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
-                unzip terraform.zip
-                sudo mv terraform /usr/local/bin/
-                terraform --version
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "Logged in via Service Connection"
 
-          - stage: Terraform
-            jobs:
-              - job: TF
-                pool:
-                  vmImage: 'ubuntu-latest'
-                steps:
-                  # 1) Log in to Azure with Service Connection (sets az context, non utilisé par Terraform)
-                  - task: AzureCLI@2
-                    displayName: 'Azure CLI Login'
-                    inputs:
-                      azureSubscription: $(azureSubscription)
-                      scriptType: bash
-                      scriptLocation: inlineScript
-                      inlineScript: |
-                        echo "Logged in via Service Connection"
-
-                  # 2) Exporter les credentials SP pour Terraform
-                  - script: |
-                      echo "## Exposer SP credentials pour Terraform"
-                      export ARM_SUBSCRIPTION_ID=$(subscription_id)
-                      export ARM_TENANT_ID=$(tenant_id)
-                      export ARM_CLIENT_ID=$(client_id)
-                      export ARM_CLIENT_SECRET=$(client_secret)
-                      cd $(terraformDir)
-                      terraform init
-                      terraform plan -out=tfplan
-                      terraform apply -auto-approve tfplan
-                    displayName: 'Terraform Init/Plan/Apply'
+          # 2) Exporter les credentials SP pour Terraform
+          - script: |
+              TERRAFORM_VERSION="1.9.8"
+              wget -O terraform.zip https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+              unzip terraform.zip
+              sudo mv terraform /usr/local/bin/
+              echo "## Exposer SP credentials pour Terraform"
+              export ARM_SUBSCRIPTION_ID=$(subscription_id)
+              export ARM_TENANT_ID=$(tenant_id)
+              export ARM_CLIENT_ID=$(client_id)
+              export ARM_CLIENT_SECRET=$(client_secret)
+              cd $(terraformDir)
+              terraform init
+              terraform plan -out=tfplan
+              terraform apply -auto-approve tfplan
+            displayName: 'Terraform Init/Plan/Apply'
 
 
 

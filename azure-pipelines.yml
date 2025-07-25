@@ -5,7 +5,7 @@ variables:
   # Variables pour Azure
   azureSubscription: 'myserviceconnection'
   resourceGroupName: 'sentimentApi'
-  location: 'West Europe'
+  location: 'westeurope'
 
   # Variables pour le registre de conteneurs
   containerRegistry: 'dockerhub'

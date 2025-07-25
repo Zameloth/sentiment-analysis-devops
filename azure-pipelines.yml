@@ -9,7 +9,7 @@ variables:
 
   # Variables pour le registre de conteneurs
   acrName: '4iabdSentimentACR754'
-  containerRegistry: '$4iabdsentimentacr754.azurecr.io'
+  containerRegistry: '4iabdsentimentacr754.azurecr.io'
 
   # Variables pour les images Docker
   apiImageName: 'sentiment-api'
@@ -168,15 +168,6 @@ stages:
           vmImage: 'ubuntu-latest'
         steps:
           # Connexion à ACR
-          - task: AzureCLI@2
-            displayName: 'ACR Login'
-            inputs:
-              azureSubscription: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                az acr login --name $(acrName)
-
           # Construction et push de l'image API
           - task: Docker@2
             displayName: 'Build and Push API Image'
@@ -200,7 +191,6 @@ stages:
               tags: |
                 $(tag)
                 latest
-
 
   - stage: HealthCheck
     dependsOn: Build

@@ -4,8 +4,14 @@ trigger:
       - main
 
 variables:
-  # Nom EXACT de votre Service Connection ARM
+  # Service Connection ARM
   azureSubscription: 'myserviceconnection'
+
+  # Backend Azure Storage (doit exister ou être créé en amont)
+  storage_account_name: 'sentimentapistate'
+  container_name: 'tfstate'
+  backend_key: 'sentimentapi/terraform.tfstate'
+
   # Variables Terraform
   resource_group_name: 'sentimentAnalysis'
   location: 'West Europe'
@@ -14,8 +20,7 @@ variables:
   webapp_name: '4iabdSentimentAPIWebApp'
   image_name: '4iabdSentimentAPI'
   image_tag: '$(Build.BuildId)'
-  terraformDir: '.'  # Dossier racine au lieu de 'terraform'
-
+  terraformDir: '.'  # Dossier racine des .tf
 
 stages:
 
@@ -49,38 +54,22 @@ stages:
                 az account show
                 echo "Connection successful!"
 
+      # 3) Terraform Init avec backend Azure
           - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
+              azureSubscription: '$(azureSubscription)'
+              scriptType: bash
+              scriptLocation: inlineScript
               inlineScript: |
-                echo "Current directory: $(pwd)"
-                ls -la
+                cd $(terraformDir)
                 terraform init \
-                  -backend-config="resource_group_name=sentimentApi" \
-                  -backend-config="storage_account_name=$(terraform output -raw tfstate_storage_account_name)" \
-                  -backend-config="container_name=tfstate" \
-                  -backend-config="key=sentimentapi/terraform.tfstate" \
+                  -backend-config="resource_group_name=$(resource_group_name)" \
+                  -backend-config="storage_account_name=$(storage_account_name)" \
+                  -backend-config="container_name=$(container_name)" \
+                  -backend-config="key=$(backend_key)" \
                   -migrate-state
 
-          - task: AzureCLI@2
-            displayName: 'Import existing Resource Group into Terraform state'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                # Récupère l'ID de souscription courante
-                SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-                # Vérifie si le RG est déjà dans l'état
-                if ! terraform state list | grep -q azurerm_resource_group.my_rg; then
-                  echo "Importing resource group $(resource_group_name) into Terraform state..."
-                  terraform import azurerm_resource_group.my_rg "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/$(resource_group_name)"
-                else
-                  echo "Resource group already managed by Terraform."
-                fi
 
           - task: AzureCLI@2
             displayName: 'Terraform Plan'

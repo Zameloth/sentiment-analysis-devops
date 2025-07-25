@@ -8,7 +8,7 @@ variables:
   location: 'West Europe'
 
   # Variables pour le registre de conteneurs
-  containerRegistry: '4iabdSentimentACR.azurecr.io'
+  containerRegistry: 'dockerhub'
 
   # Variables pour les images Docker
   apiImageName: 'sentiment-api'

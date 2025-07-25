@@ -43,59 +43,36 @@ stages:
                 sudo mv terraform /usr/local/bin/
                 terraform --version
 
-          - task: AzureCLI@2
-            displayName: 'Test Connection'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Testing Azure connection..."
-                az account show
-                echo "Connection successful!"
+          - stage: Terraform
+            jobs:
+              - job: TF
+                pool:
+                  vmImage: 'ubuntu-latest'
+                steps:
+                  # 1) Log in to Azure with Service Connection (sets az context, non utilisé par Terraform)
+                  - task: AzureCLI@2
+                    displayName: 'Azure CLI Login'
+                    inputs:
+                      azureSubscription: $(azureSubscription)
+                      scriptType: bash
+                      scriptLocation: inlineScript
+                      inlineScript: |
+                        echo "Logged in via Service Connection"
 
-      # 3) Terraform Init avec backend Azure
-          - task: AzureCLI@2
-            displayName: 'Terraform Init'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: bash
-              scriptLocation: inlineScript
-              inlineScript: |
-                cd $(terraformDir)
-                terraform init \
-                  -backend-config="resource_group_name=$(resource_group_name)" \
-                  -backend-config="storage_account_name=$(storage_account_name)" \
-                  -backend-config="container_name=$(container_name)" \
-                  -backend-config="key=$(backend_key)" \
-                  -migrate-state
+                  # 2) Exporter les credentials SP pour Terraform
+                  - script: |
+                      echo "## Exposer SP credentials pour Terraform"
+                      export ARM_SUBSCRIPTION_ID=$(subscription_id)
+                      export ARM_TENANT_ID=$(tenant_id)
+                      export ARM_CLIENT_ID=$(client_id)
+                      export ARM_CLIENT_SECRET=$(client_secret)
+                      cd $(terraformDir)
+                      terraform init
+                      terraform plan -out=tfplan
+                      terraform apply -auto-approve tfplan
+                    displayName: 'Terraform Init/Plan/Apply'
 
 
-          - task: AzureCLI@2
-            displayName: 'Terraform Plan'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                terraform plan \
-                  -var="resource_group_name=$(resource_group_name)" \
-                  -var="location=$(location)" \
-                  -var="acr_name=$(acr_name)" \
-                  -var="app_service_plan_name=$(app_service_plan_name)" \
-                  -var="webapp_name=$(webapp_name)" \
-                  -var="image_name=$(image_name)" \
-                  -var="image_tag=$(image_tag)" \
-                  -out=tfplan
-
-          - task: AzureCLI@2
-            displayName: 'Terraform Apply'
-            inputs:
-              connectedServiceNameARM: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                terraform apply -auto-approve tfplan
 
   - stage: Build_and_Push
     displayName: 'Build Docker & Push to ACR'

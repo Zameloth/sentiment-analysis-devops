@@ -67,6 +67,25 @@ stages:
               backendAzureRmContainerName: 'tfstate'
               backendAzureRmKey: 'sentimentapi/terraform.tfstate'
 
+          - task: AzureCLI@2
+            displayName: 'Import Existing Resources'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+              inlineScript: |
+                # Récupérer l'ID de souscription
+                SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+                # Importer le groupe de ressources
+                terraform import \
+                  azurerm_resource_group.rg \
+                  "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$(resourceGroupName)"
+
+                # Note: Ajoutez d'autres commandes d'importation si nécessaire
+
+
           # Plan Terraform
           - task: TerraformTaskV4@4
             inputs:

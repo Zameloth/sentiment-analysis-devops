@@ -58,7 +58,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              connectedServiceNameARM: '$(azureSubscription)'
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |

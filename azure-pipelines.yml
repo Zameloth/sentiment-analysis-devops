@@ -169,11 +169,11 @@ stages:
           vmImage: 'ubuntu-latest'
         steps:
           - task: AzureCLI@2
-          - inputs:
-          - azureSubscription: '$(azureSubscription)'
-          - scriptType: 'bash'
-          - scriptLocation: 'inlineScript'
-          - inlineScript: |
+            inputs:
+            azureSubscription: '$(azureSubscription)'
+            scriptType: 'bash'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
               az acr login --name 4iabdSentimentACR754
 
           # Connexion à ACR

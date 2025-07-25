@@ -103,6 +103,24 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
               environmentServiceNameAzureRM: '$(azureSubscription)'
               commandOptions: '-auto-approve -var="image_tag=$(tag)"'
+
+          # Push du nouveau tfstate si succès
+          - task: AzureCLI@2
+            displayName: 'Push Updated Terraform State'
+            condition: succeeded()
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+              inlineScript: |
+                az storage blob upload \
+                  --account-name $(storage_account_name) \
+                  --container-name tfstate \
+                  --name sentimentapi/terraform.tfstate \
+                  --file terraform.tfstate \
+                  --overwrite
+
   - stage: Build
     dependsOn: Deploy
     jobs:

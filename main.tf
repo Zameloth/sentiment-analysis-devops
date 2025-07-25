@@ -7,6 +7,15 @@ terraform {
     }
   }
   required_version = ">= 1.0.0"
+
+  backend "azurerm" {
+    resource_group_name  = var.resource_group_name
+    storage_account_name = azurerm_storage_account.tfstate.name # attention : ne fonctionne PAS en interpolation
+    container_name       = azurerm_storage_container.tfstate.name
+    key                  = "sentimentapi/terraform.tfstate"
+  }
+
+
 }
 
 provider "azurerm" {
@@ -52,8 +61,23 @@ resource "azurerm_linux_web_app" "webapp" {
     DOCKER_REGISTRY_SERVER_URL          = "https://${azurerm_container_registry.acr.login_server}"
     DOCKER_REGISTRY_SERVER_USERNAME     = azurerm_container_registry.acr.admin_username
     DOCKER_REGISTRY_SERVER_PASSWORD     = azurerm_container_registry.acr.admin_password
-    WEBSITES_PORT                       = "8000"  # Ajustez selon le port de votre app
+    WEBSITES_PORT                       = "8000" # Ajustez selon le port de votre app
   }
+}
+
+# --- bootstrap pour le backend ---
+resource "azurerm_storage_account" "tfstate" {
+  name                     = "sentimentapistate" # doit être en lowercase, 3-24 caractères
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_storage_container" "tfstate" {
+  name                  = "tfstate"
+  storage_account_name  = azurerm_storage_account.tfstate.name
+  container_access_type = "private"
 }
 
 output "webapp_default_hostname" {

@@ -76,15 +76,26 @@ stages:
               scriptLocation: 'inlineScript'
               workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
               inlineScript: |
-                # Télécharger le tfstate existant
-                az storage blob download \
+                # Vérifier si le blob existe avant de le télécharger
+                if az storage blob exists \
                   --account-name $(storage_account_name) \
                   --container-name tfstate \
                   --name sentimentapi/terraform.tfstate \
-                  --file terraform.tfstate \
-                  --if-exists
+                  --query exists \
+                  --output tsv | grep -q "true"; then
                 
-                    # Supprimer la ressource de l'état
+                  # Télécharger le tfstate existant
+                  az storage blob download \
+                    --account-name $(storage_account_name) \
+                    --container-name tfstate \
+                    --name sentimentapi/terraform.tfstate \
+                    --file terraform.tfstate
+                else
+                  echo "No existing state file found. Starting fresh."
+                fi
+                
+                
+                # Supprimer la ressource de l'état
           - task: AzureCLI@2
             displayName: 'Remove Resource from State'
             inputs:

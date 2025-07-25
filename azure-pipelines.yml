@@ -3,7 +3,7 @@ trigger:
 
 variables:
   # Variables pour Azure
-  azureSubscription: 'Azure-Connection'
+  azureSubscription: 'myserviceconnection'
   resourceGroupName: 'sentimentApi'
   location: 'West Europe'
 

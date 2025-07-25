@@ -44,7 +44,7 @@ resource "azurerm_service_plan" "model_plan" {
   name                = "${var.app_service_plan_name}-model"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  sku_name            = "P1v2"  # Plus puissant pour le modèle
+  sku_name            = "BI"  # Plus puissant pour le modèle
   os_type             = "Linux"
 }
 

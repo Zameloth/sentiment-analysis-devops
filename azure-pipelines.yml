@@ -17,7 +17,6 @@ variables:
 
 stages:
   - stage: Deploy
-    dependsOn: Build
     jobs:
       - job: DeployInfrastructure
         pool:
@@ -56,6 +55,7 @@ stages:
               environmentServiceNameAzureRM: '$(azureSubscription)'
               commandOptions: '-auto-approve -var="image_tag=$(tag)"'
   - stage: Build
+    dependsOn: Deploy
     jobs:
       - job: BuildAndPublish
         pool:

@@ -8,30 +8,11 @@ terraform {
   required_version = ">= 1.0.0"
 
   backend "azurerm" {
-    resource_group_name  = var.resource_group_name
-    storage_account_name = azurerm_storage_account.tfstate.name
-    container_name       = azurerm_storage_container.tfstate.name
-    key                 = "sentimentapi/terraform.tfstate"
   }
 }
 
 provider "azurerm" {
   features {}
-}
-
-# Bootstrap pour le backend
-resource "azurerm_storage_account" "tfstate" {
-  name                     = "sentimentapistate"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
-
-resource "azurerm_storage_container" "tfstate" {
-  name                  = "tfstate"
-  storage_account_name  = azurerm_storage_account.tfstate.name
-  container_access_type = "private"
 }
 
 # Resource Group

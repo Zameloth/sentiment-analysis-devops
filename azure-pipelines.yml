@@ -8,7 +8,8 @@ variables:
   location: 'westeurope'
 
   # Variables pour le registre de conteneurs
-  containerRegistry: 'dockerhub'
+  acrName: '4iabdSentimentACR754'
+  containerRegistry: '$(acrName).azurecr.io'
 
   # Variables pour les images Docker
   apiImageName: 'sentiment-api'
@@ -166,25 +167,23 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
-          # Installation des dépendances Terraform
-          - task: TerraformInstaller@0
+          # Connexion à ACR
+          - task: AzureCLI@2
+            displayName: 'ACR Login'
             inputs:
-              terraformVersion: 'latest'
-          # Connexion au registre Docker
-          - task: Docker@2
-            displayName: 'Docker Login'
-            inputs:
-              command: login
-              containerRegistry: '$(containerRegistry)'
-
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az acr login --name $(acrName)
 
           # Construction et push de l'image API
           - task: Docker@2
             displayName: 'Build and Push API Image'
             inputs:
-              containerRegistry: '$(containerRegistry)'
-              repository: '$(apiImageName)'
               command: 'buildAndPush'
+              repository: '$(apiImageName)'
+              containerRegistry: '$(acrName).azurecr.io'
               Dockerfile: 'api/Dockerfile'
               tags: |
                 $(tag)
@@ -194,9 +193,9 @@ stages:
           - task: Docker@2
             displayName: 'Build and Push Model Image'
             inputs:
-              containerRegistry: '$(containerRegistry)'
-              repository: '$(modelImageName)'
               command: 'buildAndPush'
+              repository: '$(modelImageName)'
+              containerRegistry: '$(acrName).azurecr.io'
               Dockerfile: 'model/Dockerfile'
               tags: |
                 $(tag)

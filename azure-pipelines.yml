@@ -24,8 +24,11 @@ stages:
         steps:
           # Téléchargement des artefacts de build si nécessaire
           - download: current
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 'latest'
 
-          # Initialisation de Terraform
+              # Initialisation de Terraform
           - task: TerraformTaskV4@4
             inputs:
               provider: 'azurerm'

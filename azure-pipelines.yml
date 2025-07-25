@@ -32,6 +32,29 @@ stages:
             inputs:
               terraformVersion: '1.7.2'
 
+          - task: AzureCLI@2
+            displayName: 'Create Azure Storage for Terraform State'
+            inputs:
+              azureSubscription: '$(azureSubscription)'  # Remplacez par votre nom de connexion de service
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Créer le groupe de ressources
+                az group create --name $(resource_group_name) --location $(location)
+
+                # Créer le compte de stockage
+                az storage account create \
+                  --name $(storage_account_name) \
+                  --resource-group $(resource_group_name) \
+                  --location $(location) \
+                  --sku Standard_LRS
+
+                # Créer le conteneur
+                az storage container create \
+                  --name tfstate \
+                  --account-name $(storage_account_name)
+
+
               # Initialisation de Terraform
           - task: TerraformTaskV4@4
             inputs:

@@ -67,6 +67,35 @@ stages:
               backendAzureRmContainerName: 'tfstate'
               backendAzureRmKey: 'sentimentapi/terraform.tfstate'
 
+          # Télécharger l'état Terraform existant
+          - task: AzureCLI@2
+            displayName: 'Download Terraform State'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+              inlineScript: |
+                # Télécharger le tfstate existant
+                az storage blob download \
+                  --account-name $(storage_account_name) \
+                  --container-name tfstate \
+                  --name sentimentapi/terraform.tfstate \
+                  --file terraform.tfstate \
+                  --if-exists
+                
+                    # Supprimer la ressource de l'état
+          - task: AzureCLI@2
+            displayName: 'Remove Resource from State'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+              inlineScript: |
+                terraform state rm azurerm_resource_group.rg || true
+
+          # Importer les ressources existantes
           - task: AzureCLI@2
             displayName: 'Import Existing Resources'
             inputs:
@@ -77,13 +106,11 @@ stages:
               inlineScript: |
                 # Récupérer l'ID de souscription
                 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-
+                
                 # Importer le groupe de ressources
                 terraform import \
                   azurerm_resource_group.rg \
                   "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$(resourceGroupName)"
-
-                # Note: Ajoutez d'autres commandes d'importation si nécessaire
 
 
           # Plan Terraform
@@ -166,7 +193,7 @@ stages:
 
 
   - stage: HealthCheck
-    dependsOn: Deploy
+    dependsOn: Build
     jobs:
       - job: TestEndpoints
         pool:
